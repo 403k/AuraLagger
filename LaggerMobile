@@ -1,0 +1,265 @@
+--// how u find this
+
+local Players           = game:GetService("Players")
+local UserInputService  = game:GetService("UserInputService")
+local TweenService      = game:GetService("TweenService")
+local RunService        = game:GetService("RunService")
+
+local player            = Players.LocalPlayer
+local playerGui         = player:WaitForChild("PlayerGui")
+
+--// FORCE MOBILE MODE ONLY → KICK PC USERS
+if not UserInputService.TouchEnabled or UserInputService.KeyboardEnabled then
+	player:Kick("you on pc trying a mobile script? xD")
+	return
+end
+
+--// SETTINGS
+local TOOL_PATTERNS = {
+	"dark matter slap","flame slap","glitched slap","splatter slap",
+	"alien slap","blackhole slap"
+}
+local CYCLE_DELAY       = 0.1  -- 10 cycles/sec
+
+--// STATE
+local spamEnabled       = false
+local spamThread        = nil
+local isMinimized       = true  -- Start minimized
+local reopenBtn         = nil
+
+--// CORE: EQUIP → UNEQUIP ALL TOOLS
+local function getBackpack() return player:FindFirstChild("Backpack") end
+local function getCharacter() return player.Character end
+
+local function cycleAllTools()
+	while spamEnabled do
+		local char = getCharacter()
+		if not char then task.wait(CYCLE_DELAY); continue end
+		local backpack = getBackpack()
+		if not backpack then task.wait(CYCLE_DELAY); continue end
+
+		-- EQUIP ALL
+		for _, pattern in ipairs(TOOL_PATTERNS) do
+			local lowPat = pattern:lower()
+			for _, tool in pairs(backpack:GetChildren()) do
+				if tool:IsA("Tool") and tool.Name:lower():find(lowPat, 1, true) then
+					tool.Parent = char
+				end
+			end
+		end
+
+		task.wait(0.03)
+
+		-- UNEQUIP ALL
+		for _, tool in pairs(char:GetChildren()) do
+			if tool:IsA("Tool") then
+				local name = tool.Name:lower()
+				for _, pat in ipairs(TOOL_PATTERNS) do
+					if name:find(pat, 1, true) then
+						tool.Parent = backpack
+						break
+					end
+				end
+			end
+		end
+
+		task.wait(CYCLE_DELAY - 0.03)
+	end
+end
+
+--// GUI: MOBILE ONLY (320x240) - BIGGER TOPBAR
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "RTX_DavesLagger"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 320, 0, 240)
+mainFrame.Position = UDim2.new(0.5, -160, 0.5, -120)
+mainFrame.BackgroundColor3 = Color3.fromRGB(192, 192, 192)
+mainFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+mainFrame.BorderSizePixel = 2
+mainFrame.Visible = false  -- Start hidden
+mainFrame.Parent = screenGui
+
+-- BIG TITLE BAR (40px)
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.BackgroundColor3 = Color3.fromRGB(0, 0, 128)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -100, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "RTX / DAVES LAGGER"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.Code
+titleLabel.TextSize = 18
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+-- BIG CLOSE BUTTON
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(192, 192, 192)
+closeBtn.BorderColor3 = Color3.fromRGB(128, 128, 128)
+closeBtn.BorderSizePixel = 1
+closeBtn.Text = "x"
+closeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+closeBtn.Font = Enum.Font.Code
+closeBtn.TextSize = 18
+closeBtn.Parent = titleBar
+closeBtn.MouseButton1Click:Connect(function() screenGui:Destroy() end)
+
+-- BIG MINIMIZE BUTTON
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+minimizeBtn.Position = UDim2.new(1, -70, 0, 5)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(192, 192, 192)
+minimizeBtn.BorderColor3 = Color3.fromRGB(128, 128, 128)
+minimizeBtn.BorderSizePixel = 1
+minimizeBtn.Text = "-"
+minimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+minimizeBtn.Font = Enum.Font.Code
+minimizeBtn.TextSize = 20
+minimizeBtn.Parent = titleBar
+
+-- DRAGGING (Touch only)
+local dragging = false
+local dragStart, startPos
+
+titleBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch and not isMinimized then
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+	end
+end)
+
+titleBar.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.Touch then
+		local delta = input.Position - dragStart
+		mainFrame.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+-- Content
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, -10, 1, -50)
+content.Position = UDim2.new(0, 5, 0, 40)
+content.BackgroundColor3 = Color3.fromRGB(192, 192, 192)
+content.BorderSizePixel = 1
+content.BorderColor3 = Color3.fromRGB(128, 128, 128)
+content.Parent = mainFrame
+
+local icon = Instance.new("ImageLabel")
+icon.Size = UDim2.new(0, 40, 0, 40)
+icon.Position = UDim2.new(0, 20, 0, 15)
+icon.BackgroundTransparency = 1
+icon.Image = "rbxassetid://6031094673"
+icon.Parent = content
+
+-- BIG TOGGLE BUTTON
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 120, 0, 50)
+toggleBtn.Position = UDim2.new(0.5, -60, 0, 70)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(192, 192, 192)
+toggleBtn.BorderColor3 = Color3.fromRGB(128, 128, 128)
+toggleBtn.BorderSizePixel = 3
+toggleBtn.Text = "LAG: OFF"
+toggleBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+toggleBtn.Font = Enum.Font.Code
+toggleBtn.TextSize = 20
+toggleBtn.Parent = content
+
+local function press(btn) btn.BackgroundColor3 = Color3.fromRGB(128, 128, 128) end
+local function release(btn) btn.BackgroundColor3 = Color3.fromRGB(192, 192, 192) end
+toggleBtn.MouseButton1Down:Connect(function() press(toggleBtn) end)
+toggleBtn.MouseButton1Up:Connect(function() release(toggleBtn) end)
+
+-- BIG OK BUTTON
+local okBtn = Instance.new("TextButton")
+okBtn.Size = UDim2.new(0, 90, 0, 45)
+okBtn.Position = UDim2.new(1, -105, 1, -55)
+okBtn.BackgroundColor3 = Color3.fromRGB(192, 192, 192)
+okBtn.BorderColor3 = Color3.fromRGB(128, 128, 128)
+okBtn.BorderSizePixel = 3
+okBtn.Text = "OK"
+okBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+okBtn.Font = Enum.Font.Code
+okBtn.TextSize = 20
+okBtn.Parent = content
+okBtn.MouseButton1Down:Connect(function() press(okBtn) end)
+okBtn.MouseButton1Up:Connect(function() release(okBtn) end)
+
+--// REOPEN BUTTON (TOP-RIGHT, BIG)
+reopenBtn = Instance.new("TextButton")
+reopenBtn.Size = UDim2.new(0, 70, 0, 70)
+reopenBtn.Position = UDim2.new(1, -80, 0, 10)
+reopenBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+reopenBtn.BorderColor3 = Color3.fromRGB(0, 0, 0)
+reopenBtn.BorderSizePixel = 3
+reopenBtn.Text = "OPEN"
+reopenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+reopenBtn.Font = Enum.Font.SourceSansBold
+reopenBtn.TextSize = 18
+reopenBtn.AutoButtonColor = true
+reopenBtn.ZIndex = 10
+reopenBtn.Visible = true
+reopenBtn.Parent = screenGui
+
+-- Connect reopen
+local function connectReopen()
+	reopenBtn.MouseButton1Click:Connect(function()
+		isMinimized = false
+		mainFrame.Visible = true
+		reopenBtn.Text = "OPEN"
+		minimizeBtn.MouseButton1Click:Connect(minimize)
+		okBtn.MouseButton1Click:Connect(minimize)
+	end)
+end
+connectReopen()
+
+--// MINIMIZE FUNCTION
+local function minimize()
+	isMinimized = true
+	mainFrame.Visible = false
+	reopenBtn.Text = "OPEN"
+	minimizeBtn.MouseButton1Click:Disconnect()
+	okBtn.MouseButton1Click:Disconnect()
+	task.spawn(connectReopen)
+end
+
+-- Connect minimize
+minimizeBtn.MouseButton1Click:Connect(minimize)
+okBtn.MouseButton1Click:Connect(minimize)
+
+--// SPAM TOGGLE
+toggleBtn.MouseButton1Click:Connect(function()
+	spamEnabled = not spamEnabled
+	toggleBtn.Text = spamEnabled and "LAG: ON" or "LAG: OFF"
+	if spamEnabled then
+		spamThread = task.spawn(cycleAllTools)
+	else
+		if spamThread then task.cancel(spamThread); spamThread = nil end
+	end
+end)
+
+--// START MINIMIZED
+task.delay(0.5, minimize)
+
+print("you dont even check this")
+print("made by dave help by rtx")
+print("try executing the pc script you wont 😂😂")
